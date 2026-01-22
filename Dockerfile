@@ -10,12 +10,10 @@ COPY . .
 RUN npm run build
 
 # Imagen principal PHP
-FROM php:8.2-fpm-alpine
+FROM php:8.2-cli-alpine
 
 # Instalar dependencias del sistema
 RUN apk update && apk add --no-cache \
-    nginx \
-    supervisor \
     curl \
     zip \
     unzip \
@@ -60,21 +58,11 @@ RUN composer install --no-dev --optimize-autoloader --no-interaction
 RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache \
     && chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
 
-# Copiar configuraciones
-COPY docker/nginx.conf /etc/nginx/nginx.conf
-COPY docker/php.ini /usr/local/etc/php/conf.d/custom.ini
-COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
-
-# Crear directorio para logs de supervisor
-RUN mkdir -p /var/log/supervisor
-
-# Crear directorio para logs de supervisor
-RUN mkdir -p /var/log/supervisor
-
 # Crear directorio para SQLite si es necesario
 RUN mkdir -p /var/www/html/database && touch /var/www/html/database/database.sqlite \
     && chown -R www-data:www-data /var/www/html/database
 
-EXPOSE 80
+EXPOSE 8000
 
-CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
+# Ejecutar migraciones y luego iniciar el servidor
+CMD php artisan migrate --force && php artisan serve --host=0.0.0.0 --port=8000
